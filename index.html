@@ -3,63 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>아포칼립스 생존 지도 v0.2</title>
+    <title>재라에(JAERA-E) 아포칼립스 탐사 지도</title>
     
+    <!-- Leaflet.js 라이브러리 -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <style>
-        /* 화면 전체를 지도로 채우기 */
-        html, body { margin: 0; padding: 0; height: 100%; background: #111; }
-        #map { width: 100%; height: 100%; }
+        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
         
-        /* 아포칼립스 분위기의 팝업창 스타일링 */
-        .leaflet-popup-content-wrapper {
-            background: #222;
-            color: #ff4d4d;
-            border: 1px solid #ff4d4d;
-            font-family: 'Courier New', monospace;
+        /* 너무 어둡지 않은 낡은 양식지/모래 먼지 톤의 배경 테마 */
+        #map { 
+            width: 100%; 
+            height: 100%; 
+            background-color: #d4c5a9; /* 황량한 모래빛 베이지 */
         }
-        .leaflet-popup-tip { background: #222; }
+
+        /* 낡은 종이 질감 필터 및 핏자국 오버레이 효과 */
+        .blood-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; /* 지도를 클릭할 수 있도록 마우스 이벤트 통과 */
+            z-index: 1000;
+            opacity: 0.15; /* 은은하게 묻어나는 피 얼룩 효과 */
+            /* 빈티지한 낡은 느낌을 주는 브라운/레드 톤의 그라데이션 */
+            background: 
+                radial-gradient(circle at 20% 30%, #800000 0%, transparent 20%),
+                radial-gradient(circle at 80% 70%, #4a0000 0%, transparent 15%),
+                radial-gradient(circle at 50% 50%, transparent 60%, #5c4a37 100%);
+        }
+
+        /* 아포칼립스 낡은 문서 스타일의 팝업창 디자인 */
+        .leaflet-popup-content-wrapper {
+            background: #f4ebd0;
+            color: #3a2e2b;
+            border: 2px solid #8a1a1a; /* 핏빛 테두리 */
+            border-radius: 4px;
+            font-family: 'Courier New', 'Malgun Gothic', monospace;
+            box-shadow: 3px 3px 10px rgba(0,0,0,0.4);
+        }
+        .leaflet-popup-tip { background: #f4ebd0; border: 1px solid #8a1a1a; }
+        .popup-title { font-weight: bold; color: #8a1a1a; border-bottom: 1px dashed #8a1a1a; padding-bottom: 4px; margin-bottom: 6px; }
+
+        /* 가상 지도 그리드 보조선 (선택 사항, 빈티지 지도 느낌 유도) */
+        .leaflet-container {
+            background-image: radial-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 0);
+            background-size: 24px 24px;
+        }
     </style>
 </head>
 <body>
 
+    <!-- 지도 및 화면 위를 덮는 핏자국/얼룩 레이어 -->
     <div id="map"></div>
+    <div class="blood-overlay"></div>
 
     <script>
-        // 2. 지도 초기화 (경위도 좌표 중심점 설정: 성균관대 자연과학캠퍼스 부근)
-        // [37.2939, 126.9749]는 중심 좌표, 13은 초기 확대 배율입니다.
-        const map = L.map('map').setView([37.2939, 126.9749], 13);
+        // 1. 가상 지도(CRS.Simple) 설정: 지구 위도/경도가 아닌 단순 X, Y 좌표계를 사용합니다.
+        const map = L.map('map', {
+            crs: L.CRS.Simple,
+            minZoom: -2,
+            maxZoom: 3
+        });
 
-        // 3. 아포칼립스풍 '다크 맵' 타일 입히기 (CartoDB Dark Matter 오픈소스 타일 사용)
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            subdomains: 'abcd',
-            maxZoom: 20
-        }).addTo(map);
+        // 가상 지도의 탐사 경계 구역 설정 (0,0 부터 1000,1000 까지의 가상 대륙)
+        const bounds = [[0, 0], [1000, 1000]];
+        map.fitBounds(bounds);
 
-        // 4. 테스트용 아포칼립스 거점 데이터 (추후 JSON 파일로 분리 가능)
-        const apocalypsePlaces = [
-            {
-                name: "⚠️ 성균관대 생존자 캠프",
-                coords: [37.2939, 126.9749],
-                desc: "안전 등급: 녹색(A). 고지대에 위치하여 좀비 방어 용이. 식량 비축량 2달 분 남음."
-            },
-            {
-                name: "💀 수원역 감염 구역",
-                coords: [37.2664, 127.0002],
-                desc: "위험 등급: 적색(X). 변종 생명체 대량 출몰. 중무장 상태가 아니라면 접근 절대 금지."
-            }
+        // 2. '재라에' 세계관의 14개 탐사 거점 및 임의 좌표 설정 [Y좌표, X좌표]
+        const jaeraeNodes = [
+            { id: 1, name: "🏚️ 침수된 지하 상가", coords: [250, 400], desc: "허리까지 차오른 오염수 아래 무언가 잠겨 있습니다. 악취가 심합니다." },
+            { id: 2, name: "🏭 잿빛 공장 지대", coords: [750, 200], desc: "기계들은 멈췄지만 고약한 매연의 흔적과 재가 사방에 날립니다." },
+            { id: 3, name: "🛒 파괴된 식자재 마트", coords: [450, 700], desc: "이미 쓸 만한 보급품은 약탈당했습니다. 텅 빈 진열대만 굴러다닙니다." },
+            { id: 4, name: "🏢 붕괴한 중앙몰", coords: [500, 500], desc: "재라에 대도시의 중심지였으나, 현재는 콘크리트 잔해만 남은 거대 무덤입니다." },
+            { id: 5, name: "📚 반파된 중앙 도서관", coords: [600, 450], desc: "불탄 책장들 사이로 과거 인류의 기록들이 파편처럼 흩어져 있습니다." },
+            { id: 6, name: "🗼 콘크리트 더 타워", coords: [800, 650], desc: "하늘을 찌를 듯 솟아있는 초고층 빌딩. 상층부는 상주하는 생존자 집단이 요새화했습니다." },
+            { id: 7, name: "🚇 끝이 막힌 폐지하철", coords: [200, 250], desc: "열차들이 뒤엉켜 선로를 가로막고 있습니다. 어둠 속에서 기괴한 소리가 들립니다." },
+            { id: 8, name: "🛤️ 축축한 지하 철길", coords: [150, 350], desc: "지하철역에서 이어지는 어두운 철로. 습기가 가득 차 이끼와 버섯이 자라나고 있습니다." },
+            { id: 9, name: "🔄 고요한 환승 구역", coords: [300, 300], desc: "한때 수만 명이 오가던 환승역 광장. 지금은 오직 정적만이 흐릅니다." },
+            { id: 10, name: "🚗 버려진 차량들의 묘지", coords: [400, 150], desc: "피난을 떠나려던 차량들이 도로를 빽빽이 메운 채 녹슬어가고 있습니다." },
+            { id: 11, name: "🚧 폐쇄된 통제 관문", coords: [850, 850], desc: "군사 장벽과 가시철망이 통행을 막고 있습니다. 관문 너머는 미개척 구역입니다." },
+            { id: 12, name: "🏗️ 고철 더미의 정원", coords: [700, 800], desc: "정체불명의 폐자재와 고철들이 산처럼 쌓여 괴상한 군집을 이루고 있습니다." },
+            { id: 13, name: "🌊 비밀스러운 지하 수로", coords: [350, 600], desc: "미로처럼 얽힌 하수도망. 미지의 생명체들이 둥지를 틀었다는 소문이 있습니다." },
+            { id: 14, name: "🏥 초록늪 중앙 의료원", coords: [650, 750], desc: "병원 주변이 원인 모를 초록색 이끼와 늪지대로 변해버렸습니다. 접근 시 방독면 필수." }
         ];
 
-        // 5. 지도 위에 마커 찍고 클릭 이벤트(팝업) 연결하기
-        apocalypsePlaces.forEach(place => {
-            const marker = L.marker(place.coords).addTo(map);
-            
-            // 마커를 클릭했을 때 나타날 텍스트 설정
-            marker.bindPopup(`<b>${place.name}</b><br><p style="color:#ccc; font-size:12px;">${place.desc}</p>`);
+        // 3. 핏빛 콘셉트에 맞춘 마커 아이콘 커스텀 (CSS 스타일 활용)
+        // 붉은색 해골 모양이나 위험 구역을 상징하는 커스텀 HTML 마커입니다.
+        const apocalypseIcon = L.divIcon({
+            html: `<div style="
+                    width: 14px; 
+                    height: 14px; 
+                    background-color: #8a1a1a; 
+                    border: 2px solid #3a2e2b; 
+                    border-radius: 50%;
+                    box-shadow: 0 0 8px #ff0000;
+                   "></div>`,
+            className: 'custom-marker-icon',
+            iconSize: [14, 14],
+            iconAnchor: [7, 7]
         });
+
+        // 4. 가상 세계 거점들을 지도에 배치
+        jaeraeNodes.forEach(node => {
+            const marker = L.marker(node.coords, { icon: apocalypseIcon }).addTo(map);
+            
+            // 팝업 디자인 연결
+            marker.bindPopup(`
+                <div class="popup-title">${node.name}</div>
+                <div style="font-size: 13px; line-height: 1.4;">${node.desc}</div>
+                <div style="font-size: 11px; color: #888; margin-top: 8px; text-align: right;">좌표: Sector [${node.coords[1]}, ${node.coords[0]}]</div>
+            `);
+        });
+
+        // 지도가 처음 켜졌을 때 중앙몰(대략 중앙)을 바라보도록 설정
+        map.setView([500, 500], 0);
     </script>
 </body>
 </html>

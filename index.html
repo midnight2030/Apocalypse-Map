@@ -5,119 +5,123 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>재라에(JAERA-E) 아포칼립스 탐사 지도</title>
     
-    <!-- Leaflet.js 라이브러리 -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <style>
         html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
         
-        /* 너무 어둡지 않은 낡은 양식지/모래 먼지 톤의 배경 테마 */
+        /* 1. 마우스 커서 이미지를 돋보기로 변경 (기본 돋보기 포인터 적용) */
         #map { 
             width: 100%; 
             height: 100%; 
-            background-color: #d4c5a9; /* 황량한 모래빛 베이지 */
+            cursor: zoom-in !important; /* 지도 위에서 돋보기 모양 커서 지정 */
         }
 
-        /* 낡은 종이 질감 필터 및 핏자국 오버레이 효과 */
+        /* 핏자국 오버레이 효과 (배경이 너무 어둡지 않게 유지하면서 은은하게 묻어나는 느낌) */
         .blood-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; /* 지도를 클릭할 수 있도록 마우스 이벤트 통과 */
+            pointer-events: none;
             z-index: 1000;
-            opacity: 0.15; /* 은은하게 묻어나는 피 얼룩 효과 */
-            /* 빈티지한 낡은 느낌을 주는 브라운/레드 톤의 그라데이션 */
+            opacity: 0.12; 
             background: 
-                radial-gradient(circle at 20% 30%, #800000 0%, transparent 20%),
-                radial-gradient(circle at 80% 70%, #4a0000 0%, transparent 15%),
-                radial-gradient(circle at 50% 50%, transparent 60%, #5c4a37 100%);
+                radial-gradient(circle at 15% 25%, #800000 0%, transparent 15%),
+                radial-gradient(circle at 75% 65%, #4a0000 0%, transparent 12%),
+                radial-gradient(circle at 50% 50%, transparent 70%, #5c4a37 100%);
         }
 
-        /* 아포칼립스 낡은 문서 스타일의 팝업창 디자인 */
+        /* 2. 거점의 특색이 드러나는 세모(삼각형) 마커 스타일링 */
+        .triangle-marker {
+            position: relative;
+            width: 0;
+            height: 0;
+            /* 위쪽을 향하는 빨간색 삼각형 만들기 */
+            border-left: 18px solid transparent;
+            border-right: 18px solid transparent;
+            border-bottom: 32px solid #a31c1c; 
+            filter: drop-shadow(0px 3px 5px rgba(0,0,0,0.5));
+        }
+        /* 삼각형 내부의 아이콘/이모지 배치 */
+        .triangle-icon {
+            position: absolute;
+            top: 12px;
+            left: -9px;
+            font-size: 13px;
+            width: 18px;
+            text-align: center;
+            line-height: 1;
+        }
+
+        /* 아포칼립스 낡은 문서 스타일의 팝업창 */
         .leaflet-popup-content-wrapper {
-            background: #f4ebd0;
-            color: #3a2e2b;
-            border: 2px solid #8a1a1a; /* 핏빛 테두리 */
+            background: #fdf6e2;
+            color: #2b221f;
+            border: 2px solid #a31c1c;
             border-radius: 4px;
             font-family: 'Courier New', 'Malgun Gothic', monospace;
-            box-shadow: 3px 3px 10px rgba(0,0,0,0.4);
         }
-        .leaflet-popup-tip { background: #f4ebd0; border: 1px solid #8a1a1a; }
-        .popup-title { font-weight: bold; color: #8a1a1a; border-bottom: 1px dashed #8a1a1a; padding-bottom: 4px; margin-bottom: 6px; }
-
-        /* 가상 지도 그리드 보조선 (선택 사항, 빈티지 지도 느낌 유도) */
-        .leaflet-container {
-            background-image: radial-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 0);
-            background-size: 24px 24px;
-        }
+        .leaflet-popup-tip { background: #fdf6e2; border: 1px solid #a31c1c; }
+        .popup-title { font-weight: bold; color: #a31c1c; border-bottom: 1px dashed #a31c1c; padding-bottom: 4px; margin-bottom: 6px; font-size: 14px; }
     </style>
 </head>
 <body>
 
-    <!-- 지도 및 화면 위를 덮는 핏자국/얼룩 레이어 -->
     <div id="map"></div>
     <div class="blood-overlay"></div>
 
     <script>
-        // 1. 가상 지도(CRS.Simple) 설정: 지구 위도/경도가 아닌 단순 X, Y 좌표계를 사용합니다.
-        const map = L.map('map', {
-            crs: L.CRS.Simple,
-            minZoom: -2,
-            maxZoom: 3
-        });
+        // 대한민국처럼 실제 건물, 숲, 저수지, 도로망이 정밀하게 표시되는 지도 배경 레이어
+        // 아포칼립스 분위기를 위해 너무 밝지 않은 '실린더/토너 스타일'의 오픈소스 맵 타일을 사용합니다.
+        const map = L.map('map').setView([37.5665, 126.9780], 12); // 초기 가상 중심점
 
-        // 가상 지도의 탐사 경계 구역 설정 (0,0 부터 1000,1000 까지의 가상 대륙)
-        const bounds = [[0, 0], [1000, 1000]];
-        map.fitBounds(bounds);
+        L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
 
-        // 2. '재라에' 세계관의 14개 탐사 거점 및 임의 좌표 설정 [Y좌표, X좌표]
+        // '재라에' 세계관 14개 거점 (실제 정밀 지도 위에 안착하기 위해 현실 기반 좌표계로 리매핑)
         const jaeraeNodes = [
-            { id: 1, name: "🏚️ 침수된 지하 상가", coords: [250, 400], desc: "허리까지 차오른 오염수 아래 무언가 잠겨 있습니다. 악취가 심합니다." },
-            { id: 2, name: "🏭 잿빛 공장 지대", coords: [750, 200], desc: "기계들은 멈췄지만 고약한 매연의 흔적과 재가 사방에 날립니다." },
-            { id: 3, name: "🛒 파괴된 식자재 마트", coords: [450, 700], desc: "이미 쓸 만한 보급품은 약탈당했습니다. 텅 빈 진열대만 굴러다닙니다." },
-            { id: 4, name: "🏢 붕괴한 중앙몰", coords: [500, 500], desc: "재라에 대도시의 중심지였으나, 현재는 콘크리트 잔해만 남은 거대 무덤입니다." },
-            { id: 5, name: "📚 반파된 중앙 도서관", coords: [600, 450], desc: "불탄 책장들 사이로 과거 인류의 기록들이 파편처럼 흩어져 있습니다." },
-            { id: 6, name: "🗼 콘크리트 더 타워", coords: [800, 650], desc: "하늘을 찌를 듯 솟아있는 초고층 빌딩. 상층부는 상주하는 생존자 집단이 요새화했습니다." },
-            { id: 7, name: "🚇 끝이 막힌 폐지하철", coords: [200, 250], desc: "열차들이 뒤엉켜 선로를 가로막고 있습니다. 어둠 속에서 기괴한 소리가 들립니다." },
-            { id: 8, name: "🛤️ 축축한 지하 철길", coords: [150, 350], desc: "지하철역에서 이어지는 어두운 철로. 습기가 가득 차 이끼와 버섯이 자라나고 있습니다." },
-            { id: 9, name: "🔄 고요한 환승 구역", coords: [300, 300], desc: "한때 수만 명이 오가던 환승역 광장. 지금은 오직 정적만이 흐릅니다." },
-            { id: 10, name: "🚗 버려진 차량들의 묘지", coords: [400, 150], desc: "피난을 떠나려던 차량들이 도로를 빽빽이 메운 채 녹슬어가고 있습니다." },
-            { id: 11, name: "🚧 폐쇄된 통제 관문", coords: [850, 850], desc: "군사 장벽과 가시철망이 통행을 막고 있습니다. 관문 너머는 미개척 구역입니다." },
-            { id: 12, name: "🏗️ 고철 더미의 정원", coords: [700, 800], desc: "정체불명의 폐자재와 고철들이 산처럼 쌓여 괴상한 군집을 이루고 있습니다." },
-            { id: 13, name: "🌊 비밀스러운 지하 수로", coords: [350, 600], desc: "미로처럼 얽힌 하수도망. 미지의 생명체들이 둥지를 틀었다는 소문이 있습니다." },
-            { id: 14, name: "🏥 초록늪 중앙 의료원", coords: [650, 750], desc: "병원 주변이 원인 모를 초록색 이끼와 늪지대로 변해버렸습니다. 접근 시 방독면 필수." }
+            { name: "침수된 지하 상가", icon: "💧", coords: [37.5612, 126.9831], desc: "허리까지 차오른 오염수 아래 무언가 잠겨 있습니다. 악취가 심합니다." },
+            { name: "잿빛 공장 지대", icon: "🏭", coords: [37.5485, 127.0040], desc: "기계들은 멈췄지만 고약한 매연의 흔적과 재가 사방에 날립니다." },
+            { name: "파괴된 식자재 마트", icon: "🛒", coords: [37.5821, 126.9610], desc: "이미 쓸 만한 보급품은 약탈당했습니다. 텅 빈 진열대만 굴러다닙니다." },
+            { name: "붕괴한 중앙몰", icon: "🏢", coords: [37.5665, 126.9780], desc: "재라에 대도시의 중심지였으나, 현재는 콘크리트 잔해만 남은 거대 무덤입니다." },
+            { name: "반파된 중앙 도서관", icon: "📚", coords: [37.5690, 126.9650], desc: "불탄 책장들 사이로 과거 인류의 기록들이 파편처럼 흩어져 있습니다." },
+            { name: "콘크리트 더 타워", icon: "🗼", coords: [37.5545, 126.9707], desc: "하늘을 찌를 듯 솟아있는 초고층 빌딩. 상층부는 상주하는 생존자 집단이 요새화했습니다." },
+            { name: "끝이 막힌 폐지하철", icon: "🚇", coords: [37.5570, 126.9920], desc: "열차들이 뒤엉켜 선로를 가로막고 있습니다. 어둠 속에서 기괴한 소리가 들립니다." },
+            { name: "축축한 지하 철길", icon: "🛤️", coords: [37.5410, 126.9520], desc: "지하철역에서 이어지는 어두운 철로. 습기가 가득 차 이끼와 버섯이 자라나고 있습니다." },
+            { name: "고요한 환승 구역", icon: "🔄", coords: [37.5700, 127.0100], desc: "한때 수만 명이 오가던 환승역 광장. 지금은 오직 정적만이 흐릅니다." },
+            { name: "버려진 차량들의 묘지", icon: "🚗", coords: [37.5320, 126.9650], desc: "피난을 떠나려던 차량들이 도로를 빽빽이 메운 채 녹슬어가고 있습니다." },
+            { name: "폐쇄된 통제 관문", icon: "🚧", coords: [37.5920, 126.9430], desc: "군사 장벽과 가시철망이 통행을 막고 있습니다. 관문 너머는 미개척 구역입니다." },
+            { name: "고철 더미의 정원", icon: "🏗️", coords: [37.5250, 126.9950], desc: "정체불명의 폐자재와 고철들이 산처럼 쌓여 괴상한 군집을 이루고 있습니다." },
+            { name: "비밀스러운 지하 수로", icon: "🌊", coords: [37.5850, 126.9900], desc: "미로처럼 얽힌 하수도망. 미지의 생명체들이 둥지를 틀었다는 소문이 있습니다." },
+            { name: "초록늪 중앙 의료원", icon: "🏥", coords: [37.5500, 127.0350], desc: "병원 주변이 원인 모를 초록색 이끼와 늪지대로 변해버렸습니다. 접근 시 방독면 필수." }
         ];
 
-        // 3. 핏빛 콘셉트에 맞춘 마커 아이콘 커스텀 (CSS 스타일 활용)
-        // 붉은색 해골 모양이나 위험 구역을 상징하는 커스텀 HTML 마커입니다.
-        const apocalypseIcon = L.divIcon({
-            html: `<div style="
-                    width: 14px; 
-                    height: 14px; 
-                    background-color: #8a1a1a; 
-                    border: 2px solid #3a2e2b; 
-                    border-radius: 50%;
-                    box-shadow: 0 0 8px #ff0000;
-                   "></div>`,
-            className: 'custom-marker-icon',
-            iconSize: [14, 14],
-            iconAnchor: [7, 7]
-        });
-
-        // 4. 가상 세계 거점들을 지도에 배치
+        // 거점 데이터를 순회하며 세모 모양 커스텀 마커 생성
         jaeraeNodes.forEach(node => {
-            const marker = L.marker(node.coords, { icon: apocalypseIcon }).addTo(map);
-            
-            // 팝업 디자인 연결
+            // 각 거점의 특색 이모지를 반영한 세모 HTML 구조 생성
+            const customTriangleHtml = `
+                <div class="triangle-marker">
+                    <div class="triangle-icon">${node.icon}</div>
+                </div>
+            `;
+
+            const jaeraeIcon = L.divIcon({
+                html: customTriangleHtml,
+                className: 'custom-jaerae-marker',
+                iconSize: [36, 32],
+                iconAnchor: [18, 32], // 삼각형 꼭짓점 밑부분이 좌표에 찍히도록 고정
+                popupAnchor: [0, -32]  // 팝업이 삼각형 머리 위에 뜨도록 위치 조절
+            });
+
+            // 마커 찍기 및 팝업 설정
+            const marker = L.marker(node.coords, { icon: jaeraeIcon }).addTo(map);
             marker.bindPopup(`
-                <div class="popup-title">${node.name}</div>
+                <div class="popup-title">${node.icon} ${node.name}</div>
                 <div style="font-size: 13px; line-height: 1.4;">${node.desc}</div>
-                <div style="font-size: 11px; color: #888; margin-top: 8px; text-align: right;">좌표: Sector [${node.coords[1]}, ${node.coords[0]}]</div>
             `);
         });
-
-        // 지도가 처음 켜졌을 때 중앙몰(대략 중앙)을 바라보도록 설정
-        map.setView([500, 500], 0);
     </script>
 </body>
 </html>

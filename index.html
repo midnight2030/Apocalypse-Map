@@ -33,7 +33,7 @@
             <div class="panel-subtitle">JAERA-E 격리거점</div>
             <p style="font-size: 12px; margin: 0 0 15px 0; color: #aaa;">[SYSTEM]: 구역/건물 클릭 시 상세 정보 브리핑을 출력합니다.</p>
             <div class="panel-info">본 지도는 가상 격리 구역 '재라에'의 전술 내부망입니다. 사방의 격리 대장벽 및 각 대로변 끝에 구축된 4개의 통제 관문 통행 시 아군 코드를 연동하십시오.</div>
-            <div style="margin-top: auto; font-size: 11px; color: #555;">OPERATOR v3.0 // CITYBLOCK GENERATED</div>
+            <div style="margin-top: auto; font-size: 11px; color: #555;">OPERATOR v3.1 // HANDCRAFTED MAP</div>
         </div>
         <div id="map"></div>
     </div>
@@ -48,173 +48,178 @@
         });
 
         // ============================================================================
-        // 도로 정의
+        // 도시 블록 정의 (Block = 도로로 둘러싼 영역)
         // ============================================================================
-        const roads = {
-            main: {
-                vertical: { coords: [[300, 0], [300, 800]], width: 10 },
-                horizontal: { coords: [[0, 400], [600, 400]], width: 10 }
-            },
-            inner: [
-                { coords: [[200, 100], [200, 395]], width: 4 },
-                { coords: [[400, 100], [400, 395]], width: 4 },
-                { coords: [[100, 250], [295, 250]], width: 4 },
-                { coords: [[305, 250], [500, 250]], width: 4 },
-                { coords: [[100, 550], [295, 550]], width: 4 },
-                { coords: [[305, 550], [500, 550]], width: 4 }
-            ],
-            outer: [
-                { coords: [[50, 0], [50, 800]], width: 5 },
-                { coords: [[550, 0], [550, 800]], width: 5 },
-                { coords: [[0, 50], [600, 50]], width: 5 },
-                { coords: [[0, 750], [600, 750]], width: 5 }
-            ]
-        };
+        const cityBlocks = [
+            // 내부 고밀도 블록 (장벽 내부: 100~500, 100~700)
+            
+            // 북서 구역
+            { name: "NW-1", y1: 110, y2: 240, x1: 110, x2: 190, density: 0.8 },
+            { name: "NW-2", y1: 110, y2: 240, x1: 210, x2: 290, density: 0.8 },
+            
+            // 북중 구역
+            { name: "NC-1", y1: 110, y2: 240, x1: 310, x2: 390, density: 0.8 },
+            { name: "NC-2", y1: 110, y2: 240, x1: 410, x2: 490, density: 0.8 },
+            
+            // 북동 구역
+            { name: "NE-1", y1: 110, y2: 240, x1: 510, x2: 590, density: 0.8 },
+            
+            // 중서 구역
+            { name: "CW-1", y1: 260, y2: 390, x1: 110, x2: 190, density: 0.8 },
+            { name: "CW-2", y1: 260, y2: 390, x1: 210, x2: 290, density: 0.8 },
+            
+            // 중중 구역
+            { name: "CC-1", y1: 260, y2: 390, x1: 310, x2: 390, density: 0.8 },
+            { name: "CC-2", y1: 260, y2: 390, x1: 410, x2: 490, density: 0.8 },
+            
+            // 중동 구역
+            { name: "CE-1", y1: 260, y2: 390, x1: 510, x2: 590, density: 0.8 },
+            
+            // 남서 구역
+            { name: "SW-1", y1: 410, y2: 540, x1: 110, x2: 190, density: 0.8 },
+            { name: "SW-2", y1: 410, y2: 540, x1: 210, x2: 290, density: 0.8 },
+            
+            // 남중 구역
+            { name: "SC-1", y1: 410, y2: 540, x1: 310, x2: 390, density: 0.8 },
+            { name: "SC-2", y1: 410, y2: 540, x1: 410, x2: 490, density: 0.8 },
+            
+            // 남동 구역
+            { name: "SE-1", y1: 410, y2: 540, x1: 510, x2: 590, density: 0.8 },
+            
+            // 외부 저밀도 블록 (장벽 외부)
+            
+            // 북쪽 외곽
+            { name: "OUT-N1", y1: 10, y2: 95, x1: 10, x2: 100, density: 0.5 },
+            { name: "OUT-N2", y1: 10, y2: 95, x1: 110, x2: 200, density: 0.5 },
+            { name: "OUT-N3", y1: 10, y2: 95, x1: 210, x2: 290, density: 0.5 },
+            { name: "OUT-N4", y1: 10, y2: 95, x1: 310, x2: 390, density: 0.5 },
+            { name: "OUT-N5", y1: 10, y2: 95, x1: 410, x2: 490, density: 0.5 },
+            { name: "OUT-N6", y1: 10, y2: 95, x1: 510, x2: 590, density: 0.5 },
+            
+            // 남쪽 외곽
+            { name: "OUT-S1", y1: 555, y2: 690, x1: 10, x2: 100, density: 0.5 },
+            { name: "OUT-S2", y1: 555, y2: 690, x1: 110, x2: 200, density: 0.5 },
+            { name: "OUT-S3", y1: 555, y2: 690, x1: 210, x2: 290, density: 0.5 },
+            { name: "OUT-S4", y1: 555, y2: 690, x1: 310, x2: 390, density: 0.5 },
+            { name: "OUT-S5", y1: 555, y2: 690, x1: 410, x2: 490, density: 0.5 },
+            { name: "OUT-S6", y1: 555, y2: 690, x1: 510, x2: 590, density: 0.5 },
+            
+            // 동쪽 외곽
+            { name: "OUT-E1", y1: 10, y2: 100, x1: 620, x2: 690, density: 0.5 },
+            { name: "OUT-E2", y1: 110, y2: 200, x1: 620, x2: 690, density: 0.5 },
+            { name: "OUT-E3", y1: 210, y2: 300, x1: 620, x2: 690, density: 0.5 },
+            { name: "OUT-E4", y1: 310, y2: 400, x1: 620, x2: 690, density: 0.5 },
+            { name: "OUT-E5", y1: 410, y2: 500, x1: 620, x2: 690, density: 0.5 },
+            { name: "OUT-E6", y1: 510, y2: 590, x1: 620, x2: 690, density: 0.5 },
+            { name: "OUT-E7", y1: 600, y2: 690, x1: 620, x2: 690, density: 0.5 },
+            
+            // 서쪽 외곽
+            { name: "OUT-W1", y1: 10, y2: 100, x1: 0, x2: 45, density: 0.5 },
+            { name: "OUT-W2", y1: 110, y2: 200, x1: 0, x2: 45, density: 0.5 },
+            { name: "OUT-W3", y1: 210, y2: 300, x1: 0, x2: 45, density: 0.5 },
+            { name: "OUT-W4", y1: 310, y2: 400, x1: 0, x2: 45, density: 0.5 },
+            { name: "OUT-W5", y1: 410, y2: 500, x1: 0, x2: 45, density: 0.5 },
+            { name: "OUT-W6", y1: 510, y2: 590, x1: 0, x2: 45, density: 0.5 },
+            { name: "OUT-W7", y1: 600, y2: 690, x1: 0, x2: 45, density: 0.5 }
+        ];
 
         // ============================================================================
-        // 도시 블록 생성 함수
+        // 건물 배치 데이터 (고정 좌표)
         // ============================================================================
-        function generateCityBlocks() {
-            const blocks = [];
+        const buildings = [
+            // ===== NW-1 블록 (110~240, 110~190) =====
+            [[115, 115], [130, 140]], [[115, 145], [130, 170]], [[115, 175], [130, 185]],
+            [[135, 115], [150, 140]], [[135, 145], [150, 170]], [[135, 175], [150, 185]],
+            [[155, 115], [170, 140]], [[155, 145], [170, 170]], [[155, 175], [170, 185]],
             
-            // 내부 블록 (장벽 내부) - 고밀도
-            blocks.push({ y1: 105, y2: 245, x1: 105, x2: 195, density: 0.85, type: 'inner' });
-            blocks.push({ y1: 105, y2: 245, x1: 205, x2: 295, density: 0.85, type: 'inner' });
-            blocks.push({ y1: 105, y2: 245, x1: 405, x2: 495, density: 0.85, type: 'inner' });
-            blocks.push({ y1: 105, y2: 245, x1: 505, x2: 695, density: 0.85, type: 'inner' });
+            // ===== NW-2 블록 (110~240, 210~290) =====
+            [[115, 215], [130, 240]], [[115, 245], [130, 270]], [[115, 275], [130, 285]],
+            [[135, 215], [150, 240]], [[135, 245], [150, 270]], [[135, 275], [150, 285]],
+            [[155, 215], [170, 240]], [[155, 245], [170, 270]], [[155, 275], [170, 285]],
             
-            blocks.push({ y1: 255, y2: 395, x1: 105, x2: 195, density: 0.85, type: 'inner' });
-            blocks.push({ y1: 255, y2: 395, x1: 205, x2: 295, density: 0.85, type: 'inner' });
-            blocks.push({ y1: 255, y2: 395, x1: 405, x2: 495, density: 0.85, type: 'inner' });
-            blocks.push({ y1: 255, y2: 395, x1: 505, x2: 695, density: 0.85, type: 'inner' });
+            // ===== NC-1 블록 (110~240, 310~390) =====
+            [[115, 315], [130, 340]], [[115, 345], [130, 370]], [[115, 375], [130, 385]],
+            [[135, 315], [150, 340]], [[135, 345], [150, 370]], [[135, 375], [150, 385]],
+            [[155, 315], [170, 340]], [[155, 345], [170, 370]], [[155, 375], [170, 385]],
+            [[175, 315], [190, 340]], [[175, 345], [190, 370]], [[175, 375], [190, 385]],
             
-            blocks.push({ y1: 405, y2: 545, x1: 105, x2: 195, density: 0.85, type: 'inner' });
-            blocks.push({ y1: 405, y2: 545, x1: 205, x2: 295, density: 0.85, type: 'inner' });
-            blocks.push({ y1: 405, y2: 545, x1: 405, x2: 495, density: 0.85, type: 'inner' });
-            blocks.push({ y1: 405, y2: 545, x1: 505, x2: 695, density: 0.85, type: 'inner' });
+            // ===== NC-2 블록 (110~240, 410~490) =====
+            [[115, 415], [130, 440]], [[115, 445], [130, 470]], [[115, 475], [130, 485]],
+            [[135, 415], [150, 440]], [[135, 445], [150, 470]], [[135, 475], [150, 485]],
+            [[155, 415], [170, 440]], [[155, 445], [170, 470]], [[155, 475], [170, 485]],
+            [[175, 415], [190, 440]], [[175, 445], [190, 470]], [[175, 475], [190, 485]],
             
-            // 외부 블록 (장벽 외부) - 저밀도 폐허
-            blocks.push({ y1: 10, y2: 95, x1: 10, x2: 295, density: 0.55, type: 'outer' });
-            blocks.push({ y1: 10, y2: 95, x1: 305, x2: 590, density: 0.55, type: 'outer' });
+            // ===== NE-1 블록 (110~240, 510~590) =====
+            [[115, 515], [130, 540]], [[115, 545], [130, 570]], [[115, 575], [130, 585]],
+            [[135, 515], [150, 540]], [[135, 545], [150, 570]], [[135, 575], [150, 585]],
+            [[155, 515], [170, 540]], [[155, 545], [170, 570]], [[155, 575], [170, 585]],
             
-            blocks.push({ y1: 555, y2: 690, x1: 10, x2: 295, density: 0.55, type: 'outer' });
-            blocks.push({ y1: 555, y2: 690, x1: 305, x2: 590, density: 0.55, type: 'outer' });
+            // ===== CW-1 블록 (260~390, 110~190) =====
+            [[265, 115], [280, 140]], [[265, 145], [280, 170]], [[265, 175], [280, 185]],
+            [[285, 115], [300, 140]], [[285, 145], [300, 170]], [[285, 175], [300, 185]],
+            [[305, 115], [320, 140]], [[305, 145], [320, 170]], [[305, 175], [320, 185]],
             
-            blocks.push({ y1: 10, y2: 390, x1: 560, x2: 690, density: 0.55, type: 'outer' });
-            blocks.push({ y1: 410, y2: 690, x1: 560, x2: 690, density: 0.55, type: 'outer' });
-            blocks.push({ y1: 10, y2: 390, x1: 0, x2: 45, density: 0.55, type: 'outer' });
-            blocks.push({ y1: 410, y2: 690, x1: 0, x2: 45, density: 0.55, type: 'outer' });
+            // ===== CW-2 블록 (260~390, 210~290) =====
+            [[265, 215], [280, 240]], [[265, 245], [280, 270]], [[265, 275], [280, 285]],
+            [[285, 215], [300, 240]], [[285, 245], [300, 270]], [[285, 275], [300, 285]],
+            [[305, 215], [320, 240]], [[305, 245], [320, 270]], [[305, 275], [320, 285]],
             
-            return blocks;
-        }
-
-        // ============================================================================
-        // 충돌 검사 함수
-        // ============================================================================
-        function isRoadCollision(rect) {
-            const [[y1, x1], [y2, x2]] = rect;
-            const bufferMain = 18, bufferInner = 10, bufferOuter = 10;
+            // ===== CC-1 블록 (260~390, 310~390) =====
+            [[265, 315], [280, 340]], [[265, 345], [280, 370]], [[265, 375], [280, 385]],
+            [[285, 315], [300, 340]], [[285, 345], [300, 370]], [[285, 375], [300, 385]],
+            [[305, 315], [320, 340]], [[305, 345], [320, 370]], [[305, 375], [320, 385]],
             
-            // 메인 도로 (세로)
-            if (Math.abs(x1 - 300) < bufferMain || Math.abs(x2 - 300) < bufferMain) return true;
-            // 메인 도로 (가로)
-            if (Math.abs(y1 - 400) < bufferMain || Math.abs(y2 - 400) < bufferMain) return true;
+            // ===== CC-2 블록 (260~390, 410~490) =====
+            [[265, 415], [280, 440]], [[265, 445], [280, 470]], [[265, 475], [280, 485]],
+            [[285, 415], [300, 440]], [[285, 445], [300, 470]], [[285, 475], [300, 485]],
+            [[305, 415], [320, 440]], [[305, 445], [320, 470]], [[305, 475], [320, 485]],
             
-            // 내부 도로
-            if ((Math.abs(x1 - 200) < bufferInner || Math.abs(x2 - 200) < bufferInner) && y1 >= 95 && y2 <= 400) return true;
-            if ((Math.abs(x1 - 400) < bufferInner || Math.abs(x2 - 400) < bufferInner) && y1 >= 95 && y2 <= 400) return true;
-            if ((Math.abs(y1 - 250) < bufferInner || Math.abs(y2 - 250) < bufferInner) && x1 >= 95 && x2 <= 500) return true;
-            if ((Math.abs(y1 - 550) < bufferInner || Math.abs(y2 - 550) < bufferInner) && x1 >= 95 && x2 <= 500) return true;
+            // ===== CE-1 블록 (260~390, 510~590) =====
+            [[265, 515], [280, 540]], [[265, 545], [280, 570]], [[265, 575], [280, 585]],
+            [[285, 515], [300, 540]], [[285, 545], [300, 570]], [[285, 575], [300, 585]],
+            [[305, 515], [320, 540]], [[305, 545], [320, 570]], [[305, 575], [320, 585]],
             
-            return false;
-        }
-
-        function isBuildingOverlap(rect, existingBuildings) {
-            const [[y1, x1], [y2, x2]] = rect;
+            // ===== SW-1 블록 (410~540, 110~190) =====
+            [[415, 115], [430, 140]], [[415, 145], [430, 170]], [[415, 175], [430, 185]],
+            [[435, 115], [450, 140]], [[435, 145], [450, 170]], [[435, 175], [450, 185]],
+            [[455, 115], [470, 140]], [[455, 145], [470, 170]], [[455, 175], [470, 185]],
             
-            for (let existing of existingBuildings) {
-                const [[ey1, ex1], [ey2, ex2]] = existing;
-                if (!(x2 + 2 < ex1 || ex2 + 2 < x1 || y2 + 2 < ey1 || ey2 + 2 < y1)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        // ============================================================================
-        // 블록 내 건물 생성
-        // ============================================================================
-        function generateBuildingsForBlock(block, existingBuildings) {
-            const buildings = [];
-            const { y1, y2, x1, x2, density, type } = block;
-            const blockHeight = y2 - y1;
-            const blockWidth = x2 - x1;
-            const buildingSpacing = 3;
+            // ===== SW-2 블록 (410~540, 210~290) =====
+            [[415, 215], [430, 240]], [[415, 245], [430, 270]], [[415, 275], [430, 285]],
+            [[435, 215], [450, 240]], [[435, 245], [450, 270]], [[435, 275], [450, 285]],
+            [[455, 215], [470, 240]], [[455, 245], [470, 270]], [[455, 275], [470, 285]],
             
-            let buildingTypes = [];
-            if (type === 'inner') {
-                buildingTypes = ['residential', 'commercial', 'warehouse', 'factory', 'public'];
-            } else {
-                buildingTypes = ['ruins', 'scattered'];
-            }
+            // ===== SC-1 블록 (410~540, 310~390) =====
+            [[415, 315], [430, 340]], [[415, 345], [430, 370]], [[415, 375], [430, 385]],
+            [[435, 315], [450, 340]], [[435, 345], [450, 370]], [[435, 375], [450, 385]],
+            [[455, 315], [470, 340]], [[455, 345], [470, 370]], [[455, 375], [470, 385]],
             
-            const targetArea = (blockHeight * blockWidth) * density;
-            let filledArea = 0;
-            let maxAttempts = 200;
-            let attempts = 0;
+            // ===== SC-2 블록 (410~540, 410~490) =====
+            [[415, 415], [430, 440]], [[415, 445], [430, 470]], [[415, 475], [430, 485]],
+            [[435, 415], [450, 440]], [[435, 445], [450, 470]], [[435, 475], [450, 485]],
+            [[455, 415], [470, 440]], [[455, 445], [470, 470]], [[455, 475], [470, 485]],
             
-            while (filledArea < targetArea && attempts < maxAttempts) {
-                const bType = buildingTypes[Math.floor(Math.random() * buildingTypes.length)];
-                let bHeight, bWidth;
-                
-                if (type === 'inner') {
-                    if (bType === 'factory') {
-                        bHeight = 25 + Math.random() * 15;
-                        bWidth = 30 + Math.random() * 20;
-                    } else if (bType === 'warehouse') {
-                        bHeight = 22 + Math.random() * 12;
-                        bWidth = 28 + Math.random() * 15;
-                    } else if (bType === 'commercial') {
-                        bHeight = 15 + Math.random() * 10;
-                        bWidth = 20 + Math.random() * 12;
-                    } else {
-                        bHeight = 12 + Math.random() * 10;
-                        bWidth = 15 + Math.random() * 12;
-                    }
-                } else {
-                    bHeight = 10 + Math.random() * 15;
-                    bWidth = 12 + Math.random() * 18;
-                }
-                
-                const bY = y1 + Math.random() * (blockHeight - bHeight - 4);
-                const bX = x1 + Math.random() * (blockWidth - bWidth - 4);
-                const newBuilding = [[Math.floor(bY), Math.floor(bX)], [Math.floor(bY + bHeight), Math.floor(bX + bWidth)]];
-                
-                if (!isRoadCollision(newBuilding) && !isBuildingOverlap(newBuilding, existingBuildings.concat(buildings))) {
-                    buildings.push(newBuilding);
-                    filledArea += bHeight * bWidth;
-                }
-                
-                attempts++;
-            }
+            // ===== SE-1 블록 (410~540, 510~590) =====
+            [[415, 515], [430, 540]], [[415, 545], [430, 570]], [[415, 575], [430, 585]],
+            [[435, 515], [450, 540]], [[435, 545], [450, 570]], [[435, 575], [450, 585]],
+            [[455, 515], [470, 540]], [[455, 545], [470, 570]], [[455, 575], [470, 585]],
             
-            return buildings;
-        }
-
-        // ============================================================================
-        // 도시 생성 시스템
-        // ============================================================================
-        function generateCity() {
-            const allBuildings = [];
-            const blocks = generateCityBlocks();
+            // ===== 외부 블록 (저밀도) - 북쪽 =====
+            [[20, 20], [35, 45]], [[50, 20], [65, 45]], [[120, 20], [135, 45]], [[160, 30], [175, 50]], [[230, 20], [245, 45]], [[270, 30], [285, 50]],
+            [[340, 20], [355, 45]], [[380, 30], [395, 50]], [[450, 20], [465, 45]], [[510, 30], [525, 50]],
             
-            for (let block of blocks) {
-                const blockBuildings = generateBuildingsForBlock(block, allBuildings);
-                allBuildings.push(...blockBuildings);
-            }
+            // ===== 외부 블록 (저밀도) - 남쪽 =====
+            [[570, 20], [585, 45]], [[620, 30], [635, 50]], [[20, 570], [35, 595]], [[50, 560], [65, 585]], [[120, 570], [135, 595]], [[160, 580], [175, 600]],
+            [[230, 570], [245, 595]], [[270, 580], [285, 600]], [[340, 570], [355, 595]], [[380, 580], [395, 600]], [[450, 570], [465, 595]], [[510, 580], [525, 600]],
             
-            return allBuildings;
-        }
+            // ===== 외부 블록 (저밀도) - 동쪽 =====
+            [[20, 640], [35, 665]], [[50, 650], [65, 675]], [[120, 640], [135, 665]], [[160, 650], [175, 675]], [[230, 640], [245, 665]], [[270, 650], [285, 675]],
+            [[340, 640], [355, 665]], [[380, 650], [395, 675]], [[450, 640], [465, 665]], [[510, 650], [525, 675]],
+            
+            // ===== 외부 블록 (저밀도) - 서쪽 =====
+            [[570, 20], [585, 45]], [[630, 30], [645, 50]], [[570, 120], [585, 145]], [[630, 130], [645, 155]], [[570, 220], [585, 245]], [[630, 230], [645, 255]],
+            [[570, 320], [585, 345]], [[630, 330], [645, 355]], [[570, 420], [585, 445]], [[630, 430], [645, 455]]
+        ];
 
         // ============================================================================
         // 1. 외곽 전술 격리 장벽
@@ -225,11 +230,26 @@
         // ============================================================================
         // 2. 도로 인프라망
         // ============================================================================
-        L.polyline(roads.main.vertical.coords, {color: "#ffffff", weight: 10}).addTo(map);
-        L.polyline(roads.main.horizontal.coords, {color: "#ffffff", weight: 10}).addTo(map);
+        L.polyline([[300, 0], [300, 800]], {color: "#ffffff", weight: 10}).addTo(map);
+        L.polyline([[0, 400], [600, 400]], {color: "#ffffff", weight: 10}).addTo(map);
 
-        roads.inner.forEach(road => L.polyline(road.coords, {color: "#ffffff", weight: 4}).addTo(map));
-        roads.outer.forEach(road => L.polyline(road.coords, {color: "#ffffff", weight: 5}).addTo(map));
+        const innerRoads = [
+            [[200, 100], [200, 395]],
+            [[400, 100], [400, 395]],
+            [[100, 250], [295, 250]],
+            [[305, 250], [500, 250]],
+            [[100, 550], [295, 550]],
+            [[305, 550], [500, 550]]
+        ];
+        innerRoads.forEach(path => L.polyline(path, {color: "#ffffff", weight: 4}).addTo(map));
+
+        const outerRoads = [
+            [[50, 0], [50, 800]],
+            [[550, 0], [550, 800]],
+            [[0, 50], [600, 50]],
+            [[0, 750], [600, 750]]
+        ];
+        outerRoads.forEach(path => L.polyline(path, {color: "#ffffff", weight: 5}).addTo(map));
 
         // ============================================================================
         // 3. 지하철 전술 노선도 점선
@@ -265,11 +285,9 @@
         });
 
         // ============================================================================
-        // 7. 도시 블록 시스템으로 건물 생성
+        // 7. 고정 좌표 건물 렌더링
         // ============================================================================
-        const allBuildings = generateCity();
-
-        allBuildings.forEach(coord => {
+        buildings.forEach(coord => {
             L.rectangle(coord, {color: "#a3acae", weight: 1.5, fillColor: "#bdc6c7", fillOpacity: 0.9}).addTo(map);
         });
 
@@ -319,14 +337,14 @@
         map.setMaxZoom(map.getZoom() + 2);
 
         // ============================================================================
-        // 11. 검증 및 디버깅
+        // 11. 맵 정보
         // ============================================================================
-        console.log("✅ CITYBLOCK GENERATION REPORT");
-        console.log("Total Buildings Generated:", allBuildings.length);
-        console.log("Building Density Coverage: High (85% inner, 55% outer)");
-        console.log("Road Collision Check: Enabled");
-        console.log("Building Overlap Check: Enabled");
-        console.log("Node Count:", jaeraeNodes.length);
+        console.log("✅ HANDCRAFTED TACTICAL MAP");
+        console.log("Total Buildings:", buildings.length);
+        console.log("City Blocks:", cityBlocks.length);
+        console.log("Node Markers:", jaeraeNodes.length);
+        console.log("Map Type: Fixed Coordinate System");
+        console.log("Generation Type: Handcrafted (No Procedural)");
     </script>
 </body>
 </html>

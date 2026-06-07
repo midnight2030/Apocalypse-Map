@@ -3,89 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>재라에(JAERA-E) 작전 통제 지도</title>
+    <title>재라에(JAERA-E) 전술 작전 통제망</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <style>
-        html, body { margin: 0; padding: 0; height: 100%; background-color: #2b2d2f; font-family: 'Courier New', 'Malgun Gothic', monospace; overflow: hidden; }
+        html, body { margin: 0; padding: 0; height: 100%; background-color: #1a1c1e; font-family: 'Courier New', 'Malgun Gothic', monospace; overflow: hidden; }
         
-        /* 전체 레이아웃 */
+        /* 대시보드 레이아웃 */
         .wrapper { display: flex; width: 100%; height: 100%; }
         
-        /* 왼쪽 작전 스펙 패널 */
+        /* 왼쪽 정보 브리핑 패널 */
         .side-panel {
             width: 320px;
-            background: #1c1e20;
+            background: #111314;
             color: #d1d4d7;
             padding: 25px;
             box-sizing: border-box;
-            border-right: 2px solid #3f4448;
+            border-right: 2px solid #2d3135;
             display: flex;
             flex-direction: column;
             z-index: 2000;
         }
         .panel-title { font-size: 24px; font-weight: bold; color: #ffffff; letter-spacing: 2px; margin-bottom: 5px; }
-        .panel-subtitle { font-size: 14px; color: #a31c1c; font-weight: bold; border-bottom: 1px solid #3f4448; padding-bottom: 15px; margin-bottom: 20px; }
-        .panel-info { font-size: 12px; color: #8a9095; line-height: 1.6; background: #25282a; padding: 15px; border-radius: 4px; border-left: 3px solid #a31c1c; }
+        .panel-subtitle { font-size: 14px; color: #c92a2a; font-weight: bold; border-bottom: 1px solid #2d3135; padding-bottom: 15px; margin-bottom: 20px; }
+        .panel-info { font-size: 12px; color: #8a9095; line-height: 1.6; background: #191b1d; padding: 15px; border-radius: 4px; border-left: 3px solid #c92a2a; }
 
-        /* 우측 지도 영역 */
+        /* 우측 지도 영역 (화면 고정 및 돋보기 커서 세팅) */
         #map { 
             flex-grow: 1; 
             height: 100%; 
-            background-color: #232527; /* 시인성을 위해 배경을 조금 더 딥하게 변경 */
-            cursor: zoom-in !important; 
+            background-color: #222527; 
+            cursor: zoom-in !important; /* 전체 기본 커서 돋보기 */
         }
 
-        /* 은은한 핏자국 오버레이 */
+        /* 은은한 피 얼룩 효과 */
         .blood-overlay {
             position: absolute;
             top: 0; left: 320px; right: 0; bottom: 0;
             pointer-events: none;
             z-index: 1000;
-            opacity: 0.15; 
+            opacity: 0.12; 
             background: 
-                radial-gradient(circle at 30% 20%, #6b0d0d 0%, transparent 15%),
-                radial-gradient(circle at 85% 75%, #4a0000 0%, transparent 10%);
+                radial-gradient(circle at 25% 30%, #6b0d0d 0%, transparent 15%),
+                radial-gradient(circle at 80% 70%, #4a0000 0%, transparent 12%);
         }
 
-        /* 거점 특색 이모지가 포함된 빨간색 세모(삼각형) 마커 */
-        .triangle-marker {
+        /* ⭐ 역삼각형 커스텀 마커 컨테이너 및 돋보기 커서 강제 적용 */
+        .marker-container {
             position: relative;
-            width: 0; height: 0;
-            border-left: 16px solid transparent;
-            border-right: 16px solid transparent;
-            border-bottom: 28px solid #c92a2a; /* 더 밝고 선명한 적색 고정 */
-            filter: drop-shadow(0px 3px 4px rgba(0,0,0,0.7));
+            width: 36px;
+            height: 32px;
+            cursor: zoom-in !important; /* 마커 위에서도 돋보기 커서 유지 */
         }
+        /* 아래를 향하는 적색 역삼각형 */
+        .triangle-down {
+            width: 0; height: 0;
+            border-left: 18px solid transparent;
+            border-right: 18px solid transparent;
+            border-top: 32px solid #c92a2a; 
+            filter: drop-shadow(0px 4px 5px rgba(0,0,0,0.6));
+        }
+        /* 삼각형 내부 상단에 위치할 특색 이모지 */
         .triangle-icon {
             position: absolute;
-            top: 10px; left: -8px;
-            font-size: 12px; width: 16px;
-            text-align: center; line-height: 1;
+            top: 4px; left: 0;
+            width: 36px;
+            text-align: center;
+            font-size: 13px;
+            line-height: 1;
+            z-index: 10;
+            cursor: zoom-in !important;
         }
 
-        /* 군사용 툴팁/라벨 스타일링 */
-        .sector-label {
-            background: rgba(0, 0, 0, 0.6) !important;
-            border: 1px solid #555 !important;
-            color: #fff !important;
-            font-size: 11px !important;
+        /* 지형지물 군용 스타일 라벨 */
+        .blueprint-label {
+            background: transparent !important;
+            border: none !important;
+            color: #838c94 !important;
+            font-size: 10px !important;
             font-weight: bold;
-            padding: 2px 6px !important;
+            box-shadow: none !important;
+            letter-spacing: 1px;
         }
 
-        /* 브리핑 스타일 팝업창 */
+        /* 팝업 브리핑 디자인 */
         .leaflet-popup-content-wrapper {
-            background: #1c1e20;
+            background: #111314;
             color: #d1d4d7;
             border: 1px solid #c92a2a;
             border-radius: 0px;
             padding: 5px;
         }
-        .leaflet-popup-tip { background: #1c1e20; border: 1px solid #c92a2a; }
-        .popup-title { font-weight: bold; color: #ff4d4d; border-bottom: 1px dashed #444; padding-bottom: 6px; margin-bottom: 8px; font-size: 14px; }
+        .leaflet-popup-tip { background: #111314; border: 1px solid #c92a2a; }
+        .popup-title { font-weight: bold; color: #ff4d4d; border-bottom: 1px dashed #333; padding-bottom: 6px; margin-bottom: 8px; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -93,89 +105,132 @@
     <div class="wrapper">
         <div class="side-panel">
             <div class="panel-title">재라에</div>
-            <div class="panel-subtitle">JAERA-E 격리거점</div>
-            <p style="font-size: 13px; margin: 0 0 15px 0;">[SYSTEM]: 구역/거점 클릭 시 상세 정보 브리핑을 출력합니다.</p>
+            <div class="panel-subtitle">JAERA-E 작전 통제망</div>
+            <p style="font-size: 13px; margin: 0 0 15px 0;">[SYSTEM]: 구역/건물 클릭 시 상세 정보 브리핑을 출력합니다.</p>
             <div class="panel-info">
-                본 지도는 가상 격리 구역 '재라에'의 전술 내부망입니다. 허가되지 않은 생존자의 경계선 외곽 진입을 금하며, 각 거점의 오염도를 필히 확인하십시오.
+                본 화면은 '재라에 격리 구역'의 내부 전술 청사진입니다. 지정된 14개 거점 외곽의 유독성 구역 탐사 시 오퍼레이터의 지시에 따르십시오.
             </div>
-            <div style="margin-top: auto; font-size: 11px; color: #555;">OPERATOR v0.4 // LINKED</div>
+            <div style="margin-top: auto; font-size: 11px; color: #444;">TACTICAL MAP v0.5 // LOCKED</div>
         </div>
+
         <div id="map"></div>
     </div>
     <div class="blood-overlay"></div>
 
     <script>
-        // 1. 에러 방지를 위해 단순화된 가상 좌표계 설정 (좌표 충돌 원인 제거)
+        // 1. 가상 좌표계 구성 및 무한 확장 방지 격리 설정
+        const mapBounds = [[0, 0], [600, 800]];
         const map = L.map('map', {
             crs: L.CRS.Simple,
             zoomControl: false,
-            minZoom: -2,
-            maxZoom: 2
+            minZoom: -1,
+            maxZoom: 1,
+            maxBounds: mapBounds, // 이 경계 밖으로 화면이 확장되지 않음
+            maxBoundsViscosity: 1.0
         });
 
-        // 작전판 가상 지도 총 규격 정의 [Y, X]
-        const mapBounds = [[0, 0], [600, 800]];
+        // ==========================================
+        // 🧱 실제 정밀 건물 및 지형 청사진 배치 (산/강 배제)
+        // ==========================================
+        
+        // [지형 A] 주요 전술 도로망 (도시를 구획하는 중심 길)
+        L.polyline([[300, 50], [300, 750]], {color: "#2d3236", weight: 8}).addTo(map); // 가로 중앙 대로
+        L.polyline([[50, 400], [550, 400]], {color: "#2d3236", weight: 8}).addTo(map); // 세로 중앙 대로
+        L.polyline([[400, 50], [400, 250]], {color: "#2d3236", weight: 4}).addTo(map); // 공업단지 진입로
 
-        // 2. 구역 식별이 쉽도록 보완된 전술 블록 레이아웃 그리기
-        // 중앙 도심 섹터 (구획 선명화)
-        L.rectangle([[200, 250], [450, 550]], {color: "#5a6167", weight: 2, fillColor: "#363b3f", fillOpacity: 0.9}).addTo(map)
-         .bindTooltip("중앙 도심 섹터", {permanent: true, direction: "center", className: "sector-label"});
-         
-        // 북서쪽 공업 섹터
-        L.rectangle([[400, 50], [550, 250]], {color: "#4e5459", weight: 1, fillColor: "#2e3235", fillOpacity: 0.8}).addTo(map)
-         .bindTooltip("공업 섹터", {permanent: true, direction: "center", className: "sector-label"});
+        // [지형 B] 지하 철로 및 수로망 구조선 (점선 가이드라인)
+        L.polyline([[100, 100], [100, 700], [220, 700]], {color: "#495159", weight: 3, dashArray: "6, 6"}).addTo(map);
+        L.polyline([[100, 450], [220, 450]], {color: "#3a4a54", weight: 3, dashArray: "4, 4"}).addTo(map); // 지하 수로 연결망
 
-        // 남동쪽 늪지 섹터
-        L.rectangle([[50, 550], [250, 750]], {color: "#46565a", weight: 1, fillColor: "#263134", fillOpacity: 0.8}).addTo(map)
-         .bindTooltip("늪지/저수지 섹터", {permanent: true, direction: "center", className: "sector-label"});
+        // [건물 1] 초록늪 중앙 의료원 (Distinct H-Shape 복합 병동 건물 기하학 배치)
+        L.polygon([[120, 640], [180, 640], [180, 660], [160, 660], [160, 680], [180, 680], [180, 700], [120, 700], [120, 680], [140, 680], [140, 660], [120, 660]], 
+            {color: "#384743", weight: 2, fillColor: "#25302d", fillOpacity: 0.9}).addTo(map)
+            .bindTooltip("중앙의료원 병동 타워", {permanent: true, direction: "top", className: "blueprint-label"});
 
-        // 지하철 전술 선로망 (더 밝은 회색 점선으로 가시성 확보)
-        L.polyline([[100, 100], [100, 700], [350, 700]], {color: "#7a828a", weight: 3, dashArray: "8, 8"}).addTo(map);
-        L.polyline([[300, 100], [300, 400]], {color: "#7a828a", weight: 3, dashArray: "8, 8"}).addTo(map);
+        // [건물 2] 붕괴한 중앙몰 (중앙 광장의 대형 사각형 및 내부 상가 분할 구획)
+        L.rectangle([[280, 340], [360, 460]], {color: "#464c52", weight: 2, fillColor: "#2e3236", fillOpacity: 0.9}).addTo(map);
+        L.rectangle([[295, 355], [345, 445]], {color: "#545b63", weight: 1, fillColor: "#24272a", fillOpacity: 0.8}).addTo(map)
+            .bindTooltip("중앙몰 코어 복합 단지", {permanent: true, direction: "center", className: "blueprint-label"});
 
-        // 3. 14개 거점 및 매핑 좌표 데이터
+        // [건물 3] 콘크리트 더 타워 (동쪽 초고층 빌딩의 3중 레이어 기지 형태)
+        L.rectangle([[370, 470], [430, 530]], {color: "#4d5359", weight: 2, fillColor: "#31363a", fillOpacity: 0.9}).addTo(map);
+        L.circle([400, 500], {radius: 15, color: "#c92a2a", weight: 1, fillColor: "#1c1e20", fillOpacity: 0.9}).addTo(map)
+            .bindTooltip("더 타워 요새화 상층부", {permanent: true, direction: "right", className: "blueprint-label"});
+
+        // [건물 4] 잿빛 공장 지대 (북서쪽 격자형 대형 제조 창고동 2개 배치)
+        L.rectangle([[450, 80], [520, 160]], {color: "#42474c", weight: 2, fillColor: "#2a2d30", fillOpacity: 0.9}).addTo(map);
+        L.rectangle([[460, 180], [510, 240]], {color: "#42474c", weight: 2, fillColor: "#2a2d30", fillOpacity: 0.9}).addTo(map)
+            .bindTooltip("제조 공장 제1동 / 제2동", {permanent: true, direction: "top", className: "blueprint-label"});
+
+        // [건물 5] 반파된 중앙 도서관 (ㄷ자 구조의 서고 아키텍처)
+        L.polygon([[350, 260], [410, 260], [410, 320], [390, 320], [390, 280], [350, 280]], 
+            {color: "#4b5157", weight: 2, fillColor: "#2c3034", fillOpacity: 0.9}).addTo(map);
+
+        // [지형 C] 버려진 차량들의 묘지 (차량 정렬 격자 구획 구역)
+        L.rectangle([[220, 80], [280, 180]], {color: "#3a3d40", weight: 1, fillColor: "#1d1f21", fillOpacity: 0.6, dashArray: "4, 4"}).addTo(map)
+            .bindTooltip("차량 대기 구역", {permanent: true, direction: "center", className: "blueprint-label"});
+
+        // [지형 D] 폐쇄된 통제 관문 (북동쪽 경계를 완벽히 가로막는 가시 철벽 장벽 구조)
+        L.polyline([[460, 600], [540, 700]], {color: "#c92a2a", weight: 5}).addTo(map);
+        L.polyline([[450, 610], [530, 710]], {color: "#444", weight: 2, dashArray: "5, 5"}).addTo(map)
+            .bindTooltip("외곽 차단벽", {permanent: true, direction: "left", className: "blueprint-label"});
+
+
+        // ==========================================
+        // 🎯 14개 거점 데이터 및 역삼각형 마커 매핑
+        // ==========================================
         const jaeraeNodes = [
-            { name: "침수된 지하 상가", icon: "💧", coords: [100, 200], desc: "철로 하부 상가 구역. 허리까지 차오른 오염수 아래 무언가 잠겨 있습니다." },
-            { name: "끝이 막힌 폐지하철", icon: "🚇", coords: [100, 450], desc: "선로 한가운데 열차들이 뒤엉켜 가로막고 있습니다. 내부에서 기괴한 소음 감지." },
-            { name: "축축한 지하 철길", icon: "🛤️", coords: [100, 600], desc: "습기가 가득 차 이끼와 버섯이 번식한 어두운 철로 구간입니다." },
-            { name: "고요한 환승 구역", icon: "🔄", coords: [220, 700], desc: "선로가 꺾이는 광장. 한때 수만 명이 오가던 곳이나 지금은 정적만이 흐릅니다." },
-            { name: "비밀스러운 지하 수로", icon: "🌊", coords: [350, 700], desc: "철로 끝자락과 연결된 하수도망. 미지의 생명체들이 둥지를 틀었다는 제보가 있습니다." },
-            { name: "잿빛 공장 지대", icon: "🏭", coords: [480, 150], desc: "공업 섹터 중심부. 기계들은 멈췄지만 고약한 매연의 흔적과 재가 사방에 날립니다." },
-            { name: "고철 더미의 정원", icon: "🏗️", coords: [430, 220], desc: "공장 외곽지대. 정체불명의 폐자재와 고철들이 산처럼 쌓여 군집을 이루고 있습니다." },
-            { name: "붕괴한 중앙몰", icon: "🏢", coords: [320, 400], desc: "도심 중심지 광장. 대도시의 중심지였으나 현재는 콘크리트 잔해만 남은 무덤입니다." },
-            { name: "파괴된 식자재 마트", icon: "🛒", coords: [250, 320], desc: "도심 서쪽 상업구역. 이미 쓸 만한 보급품은 약탈당해 텅 빈 진열대만 나뒹굽니다." },
-            { name: "반파된 중앙 도서관", icon: "📚", coords: [380, 300], desc: "도심 북쪽 문화구역. 불탄 책장들 사이로 과거 인류의 기록들이 파편화되어 있습니다." },
-            { name: "콘크리트 더 타워", icon: "🗼", coords: [400, 500], desc: "도심 동쪽 초고층 빌딩. 상층부는 잔존 생존자 집단이 요새화하여 지키고 있습니다." },
-            { name: "버려진 차량들의 묘지", icon: "🚗", coords: [250, 120], desc: "도심 진입 직전 도로변. 피난을 떠나려던 차량들이 도로를 메운 채 녹슬어갑니다." },
-            { name: "폐쇄된 통제 관문", icon: "🚧", coords: [500, 650], desc: "북동쪽 최외곽 장벽. 군사 가시철망이 막고 있으며, 이 너머는 완전 미개척 구역입니다." },
-            { name: "초록늪 중앙 의료원", icon: "🏥", coords: [150, 680], desc: "남동쪽 늪지 섹터 내부. 병원 주변이 원인 모를 초록색 이끼와 늪으로 변해 방독면이 필수입니다." }
+            // 지하 / 철로 카테고리 (설계된 노선/수로 배치에 일치)
+            { name: "침수된 지하 상가", icon: "💧", coords: [100, 200], desc: "철로 하부 지하 1층 상가. 허리까지 차오른 오염수 아래 보급품 상자가 잠겨 있습니다." },
+            { name: "끝이 막힌 폐지하철", icon: "🚇", coords: [100, 450], desc: "탈출 열차들이 뒤엉켜 선로를 가로막은 무덤. 터널 깊은 곳의 소음 발원지입니다." },
+            { name: "축축한 지하 철길", icon: "🛤️", coords: [100, 600], desc: "배수 인프라가 붕괴해 항상 물이 고여 있고, 정체불명의 균류가 자라나는 철로입니다." },
+            { name: "고요한 환승 구역", icon: "🔄", coords: [220, 700], desc: "선로 다중 교차 광장. 사방이 트여 있어 사계 확보는 좋으나 매복에 취약합니다." },
+            { name: "비밀스러운 지하 수로", icon: "🌊", coords: [350, 700], desc: "실제 지도 우측 하단 수로망 분기점. 방사능 차단 벽 아래 숨겨진 지하 대피로입니다." },
+
+            // 공업 구역 카테고리 (공장동 내 배치)
+            { name: "잿빛 공장 지대", icon: "🏭", coords: [485, 120], desc: "제1창고동 내부. 잔해 더미와 유독가스 분출 밸브가 작동을 멈춘 채 고정되어 있습니다." },
+            { name: "고철 더미의 정원", icon: "🏗️", coords: [430, 220], desc: "공장 폐기물 하적장. 중장비 부품 및 엄폐물로 삼을 만한 철판 자재가 다수 존재합니다." },
+
+            // 도심 구역 카테고리 (중앙몰 및 빌딩 인근 정밀 배치)
+            { name: "붕괴한 중앙몰", icon: "🏢", coords: [320, 400], desc: "중앙 종합 쇼핑몰 붕괴 잔해. 지하 주차장을 통해 내부 핵심 구역 진입이 가능합니다." },
+            { name: "파괴된 식자재 마트", icon: "🛒", coords: [250, 320], desc: "대로변 소형 유통센터. 식료품은 변질되었으나 유용한 철물 도구 수집이 가능합니다." },
+            { name: "반파된 중앙 도서관", icon: "📚", coords: [380, 300], desc: "ㄷ자 서고 내부 홀. 유실되지 않은 과거 재라에 행정 구역 지도 원본 파편 탈환 가능." },
+            { name: "콘크리트 더 타워", icon: "🗼", coords: [400, 500], desc: "랜드마크 빌딩 하층 바리케이드. 상층 생존자 무리가 외부인을 극도로 경계하고 있습니다." },
+
+            // 외곽 및 인프라 구역 카테고리 (도로변 및 의료 복합동 배치)
+            { name: "버려진 차량들의 묘지", icon: "🚗", coords: [250, 130], desc: "서쪽 진입 차로 정체 구간. 차량 연료 탱크에서 소량의 유류를 채취할 가능성이 있습니다." },
+            { name: "폐쇄된 통제 관문", icon: "🚧", coords: [500, 650], desc: "군사 차단벽 초소 자리. 게이트를 개방하려면 마스터 키카드 부품이 필요합니다." },
+            { name: "초록늪 중앙 의료원", icon: "🏥", coords: [150, 670], desc: "H병동 중앙 로비. 변이 포자가 가득한 이끼 지대로, 구호 약품 확보를 위한 핵심 거점입니다." }
         ];
 
-        // 4. 전술 세모 마커 배치
+        // 🎯 마커 및 돋보기 커서 적용 루프
         jaeraeNodes.forEach(node => {
+            // ⭐ 요구사항: 아래를 향하는 역삼각형 구조 및 내부 마커 커서 zoom-in 고정
             const triangleHtml = `
-                <div class="triangle-marker">
+                <div class="marker-container">
                     <div class="triangle-icon">${node.icon}</div>
+                    <div class="triangle-down"></div>
                 </div>
             `;
 
             const tacticalIcon = L.divIcon({
                 html: triangleHtml,
                 className: 'custom-tactical-marker',
-                iconSize: [32, 28],
-                iconAnchor: [16, 28],
-                popupAnchor: [0, -28]
+                iconSize: [36, 32],
+                iconAnchor: [18, 32], // 역삼각형의 아래쪽 뾰족한 끝점이 좌표 위치에 완벽 안착
+                popupAnchor: [0, -32]
             });
 
             const marker = L.marker(node.coords, { icon: tacticalIcon }).addTo(map);
+            
             marker.bindPopup(`
                 <div class="popup-title">${node.icon} ${node.name}</div>
                 <div style="font-size: 12px; line-height: 1.5; color: #bcccda;">${node.desc}</div>
-                <div style="font-size: 10px; color: #5c6266; margin-top: 8px; text-align: right; font-family: monospace;">GRID_LOC: [X-${node.coords[1]}, Y-${node.coords[0]}]</div>
+                <div style="font-size: 10px; color: #5c6266; margin-top: 8px; text-align: right; font-family: monospace;">SEC_COORD: [X-${node.coords[1]}, Y-${node.coords[0]}]</div>
             `);
         });
 
-        // ⭐ 핵심 수정: 모니터 크기에 상관없이 지도를 작전판 규격([0,0] ~ [600,800])에 딱 맞춰 100% 강제 로딩합니다.
+        // 지도가 구역 경계선 안에 완전하게 고정되어 뜨도록 뷰포트 고정 명령
         map.fitBounds(mapBounds);
     </script>
 </body>

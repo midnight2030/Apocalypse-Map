@@ -15,6 +15,38 @@
         .panel-subtitle { font-size: 14px; color: #ff4d4d; font-weight: bold; border-bottom: 1px solid #282a2d; padding-bottom: 15px; margin-bottom: 20px; }
         .panel-info { font-size: 12px; color: #8a9095; line-height: 1.6; background: #191b1d; padding: 15px; border-radius: 4px; border-left: 3px solid #ff4d4d; }
         #map { flex-grow: 1; height: 100%; background-color: #cbd1cc !important; }
+
+        /* 토글 버튼 스타일 */
+        .toggle-container {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 1000;
+            display: flex;
+            background: rgba(17, 19, 20, 0.95);
+            border: 2px solid #e86f25;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        .toggle-btn {
+            padding: 10px 18px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #d1d4d7;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .toggle-btn.active {
+            background: #e86f25;
+            color: #ffffff;
+        }
+        .toggle-btn:hover:not(.active) {
+            background: rgba(232, 111, 37, 0.3);
+        }
+
         .tactical-marker-container { position: relative; width: 40px; height: 40px; display: flex; flex-direction: column; align-items: center; }
         .tactical-box { width: 30px; height: 30px; background: #f8f9fa; border: 2px solid #3a3f44; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 5; }
         .tactical-pointer { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid #e86f25; margin-top: -1px; z-index: 4; filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.3)); }
@@ -36,6 +68,13 @@
         </div>
         <div id="map"></div>
     </div>
+
+    <!-- 토글 버튼 -->
+    <div class="toggle-container">
+        <button id="surfaceBtn" class="toggle-btn active">지상</button>
+        <button id="undergroundBtn" class="toggle-btn">지하</button>
+    </div>
+
     <script>
         const mapBounds = [[0, 0], [600, 800]];
         const map = L.map('map', {
@@ -45,197 +84,168 @@
             maxBoundsViscosity: 1.0
         });
 
-        // ============================================================================
-        // 1. 외곽 전술 격리 장벽
-        // ============================================================================
-        L.rectangle([[100, 100], [500, 700]], {color: "#495057", weight: 7, fill: false}).addTo(map);
-        L.rectangle([[104, 104], [496, 696]], {color: "#ffffff", weight: 2, fill: false, dashArray: "8, 6"}).addTo(map);
+        // 공통 레이어 (항상 표시)
+        const commonGroup = L.layerGroup().addTo(map);
+
+        // 지상 레이어
+        const surfaceGroup = L.layerGroup().addTo(map);
+
+        // 지하 레이어
+        const undergroundGroup = L.layerGroup();
 
         // ============================================================================
-        // 2. 도로 인프라망 (도로를 먼저 그리고 건물은 도로 피해서 배치)
+        // 1. 외곽 전술 격리 장벽 (공통)
         // ============================================================================
-        // 중앙 주요 도로
-        L.polyline([[300, 0], [300, 800]], {color: "#ffffff", weight: 10}).addTo(map);
-        L.polyline([[0, 400], [600, 400]], {color: "#ffffff", weight: 10}).addTo(map);
+        L.rectangle([[100, 100], [500, 700]], {color: "#495057", weight: 7, fill: false}).addTo(commonGroup);
+        L.rectangle([[104, 104], [496, 696]], {color: "#ffffff", weight: 2, fill: false, dashArray: "8, 6"}).addTo(commonGroup);
 
-        // 내부 도로 (조정됨)
+        // ============================================================================
+        // 2. 도로 인프라망 (공통)
+        // ============================================================================
+        L.polyline([[300, 0], [300, 800]], {color: "#ffffff", weight: 10}).addTo(commonGroup);
+        L.polyline([[0, 400], [600, 400]], {color: "#ffffff", weight: 10}).addTo(commonGroup);
+
         const innerRoads = [
-            [[200, 105], [200, 390]],  // 서쪽 수직 도로 (북쪽)
-            [[400, 105], [400, 390]],  // 동쪽 수직 도로 (북쪽)
-            [[105, 250], [290, 250]],  // 북쪽 수평 도로 서쪽
-            [[310, 250], [495, 250]],  // 북쪽 수평 도로 동쪽
-            [[105, 550], [290, 550]],  // 남쪽 수평 도로 서쪽
-            [[310, 550], [495, 550]],  // 남쪽 수평 도로 동쪽
+            [[200, 105], [200, 390]], [[400, 105], [400, 390]],
+            [[105, 250], [290, 250]], [[310, 250], [495, 250]],
+            [[105, 550], [290, 550]], [[310, 550], [495, 550]]
         ];
-        innerRoads.forEach(path => L.polyline(path, {color: "#ffffff", weight: 4}).addTo(map));
+        innerRoads.forEach(path => L.polyline(path, {color: "#ffffff", weight: 4}).addTo(commonGroup));
 
-        // 외곽 도로
         const outerRoads = [
-            [[50, 0], [50, 800]],
-            [[550, 0], [550, 800]],
-            [[0, 50], [600, 50]],
-            [[0, 750], [600, 750]]
+            [[50, 0], [50, 800]], [[550, 0], [550, 800]],
+            [[0, 50], [600, 50]], [[0, 750], [600, 750]]
         ];
-        outerRoads.forEach(path => L.polyline(path, {color: "#ffffff", weight: 5}).addTo(map));
+        outerRoads.forEach(path => L.polyline(path, {color: "#ffffff", weight: 5}).addTo(commonGroup));
 
         // ============================================================================
-        // 3. 지하철 전술 노선도 점선
+        // 3. 지하철 노선도 (지하 레이어)
         // ============================================================================
-        L.polyline([[0, 150], [600, 150]], {color: "#617485", weight: 4, dashArray: "8, 6"}).addTo(map);
-        L.polyline([[200, 0], [200, 600]], {color: "#617485", weight: 4, dashArray: "8, 6"}).addTo(map);
-        L.polyline([[400, 0], [400, 600]], {color: "#617485", weight: 4, dashArray: "8, 6"}).addTo(map);
+        L.polyline([[0, 150], [600, 150]], {color: "#617485", weight: 4, dashArray: "8, 6"}).addTo(undergroundGroup);
+        L.polyline([[200, 0], [200, 600]], {color: "#617485", weight: 4, dashArray: "8, 6"}).addTo(undergroundGroup);
+        L.polyline([[400, 0], [400, 600]], {color: "#617485", weight: 4, dashArray: "8, 6"}).addTo(undergroundGroup);
 
         // ============================================================================
-        // 4. 안내 레이블
+        // 4. 중앙 수목공원 (지상)
         // ============================================================================
-        const legendHtml = '<div style="background: rgba(17, 19, 20, 0.95); padding: 8px 12px; border: 1px solid #617485; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); color: #bcccda; font-size: 11px; font-weight: bold; display: flex; align-items: center; gap: 8px; white-space: nowrap;"><div style="width: 25px; height: 0; border-top: 3px dashed #617485;"></div><span>이 표기는 <span style="color:#ffffff;">지하철 노선도</span> 표기입니다.</span></div>';
-        L.marker([20, 565], {
-            icon: L.divIcon({ html: legendHtml, className: 'custom-legend', iconSize: [220, 30] }),
-            interactive: false
-        }).addTo(map);
-
-        // ============================================================================
-        // 5. 중앙 수목공원 (도로 피해서 조정)
-        // ============================================================================
-        L.polygon([[275, 335], [325, 335], [325, 390], [275, 390]], {color: "#99a78f", weight: 1, fillColor: "#b4c4ab", fillOpacity: 0.85}).addTo(map)
+        L.polygon([[275, 335], [325, 335], [325, 390], [275, 390]], 
+            {color: "#99a78f", weight: 1, fillColor: "#b4c4ab", fillOpacity: 0.85})
+            .addTo(surfaceGroup)
             .bindTooltip("중앙 수목공원", {permanent: true, direction: "center", className: "blueprint-label"});
 
         // ============================================================================
-        // 6. 도시 블록 설계 - 건물 배치 재조정 (도로와의 겹침 제거, 블록 간격 확보)
+        // 5. 건물들 (지상 레이어)
         // ============================================================================
-
-        // 북서 구역 (공장/창고) - x:110~240, y:110~235 (도로 y=250 아래)
-        const buildings_NW = [
-            // 큰 공장
-            { coords: [[115, 120], [145, 195]], color: "#8b7d7d", fill: "#a89c9c" },
-            { coords: [[155, 120], [185, 195]], color: "#958d85", fill: "#ada59d" },
-            // 창고
-            { coords: [[195, 125], [235, 165]], color: "#9d8d85", fill: "#b5a59d" },
-            { coords: [[195, 175], [235, 215]], color: "#9d8d85", fill: "#b5a59d" },
-        ];
-
-        // 북동 구역 (상가/호텔) - x:365~490, y:110~235
-        const buildings_NE = [
-            { coords: [[370, 120], [410, 195]], color: "#a09090", fill: "#b8a8a8" }, // 호텔
-            { coords: [[420, 120], [455, 165]], color: "#9a8a82", fill: "#b2a29a" },
-            { coords: [[460, 120], [490, 195]], color: "#959090", fill: "#ada5a0" },
-        ];
-
-        // 남서 구역 (주택) - x:110~240, y:565~680
-        const buildings_SW = [
-            { coords: [[120, 565], [155, 610]], color: "#a0a0a0", fill: "#b8b8b8" },
-            { coords: [[165, 565], [200, 610]], color: "#a0a0a0", fill: "#b8b8b8" },
-            { coords: [[120, 620], [155, 665]], color: "#a0a0a0", fill: "#b8b8b8" },
-            { coords: [[165, 620], [200, 665]], color: "#a0a0a0", fill: "#b8b8b8" },
-            { coords: [[210, 575], [235, 655]], color: "#989898", fill: "#b0b0b0" }, // 편의
-        ];
-
-        // 남동 구역 (병원/행정) - x:365~490, y:565~680
-        const buildings_SE = [
-            { coords: [[370, 565], [410, 625]], color: "#9d9595", fill: "#b5adad" }, // 병원
-            { coords: [[420, 565], [455, 610]], color: "#989090", fill: "#b0a8a8" },
-            { coords: [[460, 565], [490, 625]], color: "#959090", fill: "#ada5a0" },
-        ];
-
-        // 북중 (도로 위쪽) - x:250~350, y:110~235
-        const buildings_NC = [
-            { coords: [[255, 125], [290, 175]], color: "#a19a9a", fill: "#b9b2b2" },
-            { coords: [[305, 125], [340, 175]], color: "#a19a9a", fill: "#b9b2b2" },
-        ];
-
-        // 중서 (y=250~390 사이 서쪽)
-        const buildings_CW = [
-            { coords: [[115, 265], [165, 315]], color: "#9f9999", fill: "#b7b1b1" },
-            { coords: [[175, 265], [225, 315]], color: "#9f9999", fill: "#b7b1b1" },
-        ];
-
-        // 중앙 (수목공원 주변 조정)
-        const buildings_CC = [
-            { coords: [[115, 410], [165, 460]], color: "#999191", fill: "#b1a9a9" }, // 서쪽
-            { coords: [[435, 410], [485, 460]], color: "#999191", fill: "#b1a9a9" }, // 동쪽
-        ];
-
-        // 중동
-        const buildings_CE = [
-            { coords: [[370, 265], [415, 315]], color: "#a09898", fill: "#b8b0b0" },
-            { coords: [[425, 265], [470, 315]], color: "#a09898", fill: "#b8b0b0" },
-        ];
-
-        // 남중
-        const buildings_SC = [
-            { coords: [[255, 415], [295, 465]], color: "#9e9696", fill: "#b6aeae" },
-            { coords: [[305, 415], [345, 465]], color: "#9e9696", fill: "#b6aeae" },
-        ];
-
-        // Custom shapes (조정)
-        const customShapes = [
-            // 북쪽 특수
-            { coords: [[245, 120], [290, 120], [290, 165], [255, 165]], color: "#7b8587", fill: "#9ea9ab" },
-            // 남쪽 특수
-            { coords: [[245, 480], [290, 480], [290, 520], [255, 520]], color: "#889294", fill: "#abb5b7" },
-        ];
-
-        // 모든 건물 병합
         const buildings = [
-            ...buildings_NW, ...buildings_NE, ...buildings_SW, ...buildings_SE,
-            ...buildings_NC, ...buildings_CW, ...buildings_CC, ...buildings_CE, ...buildings_SC
+            // 북서
+            { coords: [[115, 120], [145, 195]] }, { coords: [[155, 120], [185, 195]] },
+            { coords: [[195, 125], [235, 165]] }, { coords: [[195, 175], [235, 215]] },
+            // 북동
+            { coords: [[370, 120], [410, 195]] }, { coords: [[420, 120], [455, 165]] }, { coords: [[460, 120], [490, 195]] },
+            // 남서
+            { coords: [[120, 565], [155, 610]] }, { coords: [[165, 565], [200, 610]] },
+            { coords: [[120, 620], [155, 665]] }, { coords: [[165, 620], [200, 665]] }, { coords: [[210, 575], [235, 655]] },
+            // 남동
+            { coords: [[370, 565], [410, 625]] }, { coords: [[420, 565], [455, 610]] }, { coords: [[460, 565], [490, 625]] },
+            // 북중, 중서, 중앙, 중동, 남중
+            { coords: [[255, 125], [290, 175]] }, { coords: [[305, 125], [340, 175]] },
+            { coords: [[115, 265], [165, 315]] }, { coords: [[175, 265], [225, 315]] },
+            { coords: [[115, 410], [165, 460]] }, { coords: [[435, 410], [485, 460]] },
+            { coords: [[370, 265], [415, 315]] }, { coords: [[425, 265], [470, 315]] },
+            { coords: [[255, 415], [295, 465]] }, { coords: [[305, 415], [345, 465]] }
         ];
 
-        // 건물 렌더링
-        buildings.forEach(building => {
-            L.rectangle(building.coords, {color: building.color, weight: 1.5, fillColor: building.fill, fillOpacity: 0.9}).addTo(map);
+        buildings.forEach(b => {
+            L.rectangle(b.coords, {color: "#8b7d7d", weight: 1.5, fillColor: "#a89c9c", fillOpacity: 0.9}).addTo(surfaceGroup);
         });
 
+        // Custom shapes
+        const customShapes = [
+            { coords: [[245, 120], [290, 120], [290, 165], [255, 165]] },
+            { coords: [[245, 480], [290, 480], [290, 520], [255, 520]] }
+        ];
         customShapes.forEach(sh => {
-            L.polygon(sh.coords, {color: sh.color, weight: 2, fillColor: sh.fill, fillOpacity: 0.95}).addTo(map);
+            L.polygon(sh.coords, {color: "#7b8587", weight: 2, fillColor: "#9ea9ab", fillOpacity: 0.95}).addTo(surfaceGroup);
         });
 
         // ============================================================================
-        // 7. 동서남북 4대 관문 바리케이드
+        // 6. 관문 바리케이드 (공통)
         // ============================================================================
-        L.polyline([[500, 385], [500, 415]], {color: "#c92a2a", weight: 5}).addTo(map);
-        L.polyline([[100, 385], [100, 415]], {color: "#c92a2a", weight: 5}).addTo(map);
-        L.polyline([[285, 100], [315, 100]], {color: "#c92a2a", weight: 5}).addTo(map);
-        L.polyline([[285, 700], [315, 700]], {color: "#c92a2a", weight: 5}).addTo(map);
+        L.polyline([[500, 385], [500, 415]], {color: "#c92a2a", weight: 5}).addTo(commonGroup);
+        L.polyline([[100, 385], [100, 415]], {color: "#c92a2a", weight: 5}).addTo(commonGroup);
+        L.polyline([[285, 100], [315, 100]], {color: "#c92a2a", weight: 5}).addTo(commonGroup);
+        L.polyline([[285, 700], [315, 700]], {color: "#c92a2a", weight: 5}).addTo(commonGroup);
 
         // ============================================================================
-        // 8. 거점 마커 (Node 시스템) - 위치 약간 조정
+        // 7. 거점 마커
         // ============================================================================
         const jaeraeNodes = [
-            { name: "침수된 지하 상가", icon: "💧", coords: [200, 255], desc: "철로 하부 핵심 상가. 허리까지 차오른 유독성 오염수 아래 군용 보급함이 잠겨 있습니다." },
-            { name: "끝이 막힌 폐지하철", icon: "🚇", coords: [400, 455], desc: "탈출 차량들이 연쇄 충돌해 궤도를 이탈한 지하 터널의 무덤 구역입니다." },
-            { name: "축축한 지하 철길", icon: "🛤️", coords: [400, 155], desc: "배수 인프라 차단으로 상시 습기가 유지되어 정체불명의 포자 균류가 번식한 철로입니다." },
-            { name: "고요한 환승 구역", icon: "🔄", coords: [200, 155], desc: "통제관문(남) 위쪽 지하철 노선 상에 위치한 환승역 인프라 코어입니다." },
-            { name: "비밀스러운 지하 수로", icon: "🌊", coords: [155, 635], desc: "지하 인프라와 연결된 암거 시설로 방사능 낙진을 피할 수 있는 하부 은밀 대피로입니다." },
-            { name: "잿빛 공장 지대", icon: "🏭", coords: [465, 175], desc: "제1메조 가동동 내부. 유독 가스 메인 밸브 차단 장치가 망가진 상태로 격리되어 있습니다." },
-            { name: "고철 더미의 정원", icon: "🏗️", coords: [515, 255], desc: "공장 폐기물 야적장 바닥. 전술 방벽으로 응용 수집 가능한 두꺼운 자재 철판이 다수 존재합니다." },
-            { name: "붕괴한 중앙몰", icon: "🏢", coords: [305, 380], desc: "대형 쇼핑 복합 단지 붕괴 잔해 코어. 에스컬레이터 파편을 통해 내부 주차 구역 접근이 연계됩니다." },
-            { name: "파괴된 식자재 마트", icon: "🛒", coords: [230, 295], desc: "대로변 보급 유통 센터. 식료품은 유실되었으나 생존에 유용한 철물 공구류의 핵심 파밍지입니다." },
-            { name: "반파된 중앙 도서관", icon: "📚", coords: [268, 495], desc: "문화지구 ㄷ자형 서고 내부. 유실되지 않은 행정구역 청사진 지도 파편 원본 수집 가능." },
-            { name: "콘크리트 더 타워", icon: "🗼", coords: [400, 500], desc: "초고층 빌딩 하층 바리케이드 진지. 무장 생존자 무리가 외부 인원의 진입을 통제 중입니다." },
-            { name: "버려진 차량들의 묘지", icon: "🚗", coords: [245, 165], desc: "교통 마비로 완전 정체된 피난 도로 구역. 유류 탱크 내부에서 잔여 연료 채취 기회가 존재합니다." },
-            { name: "초록늪 중앙 의료원", icon: "🏥", coords: [155, 670], desc: "H병동 종합 본관 로비. 감염 변이 식물이 가득한 격리지로 긴급 약품을 보관 중입니다." },
-            { name: "폐쇄된 통제 관문 (북)", icon: "🚧", coords: [500, 400], desc: "북측 대장벽 상단 메인 통로를 차단하는 군사 게이트. 승인된 보안 코드가 필요합니다." },
-            { name: "폐쇄된 통제 관문 (남)", icon: "🚧", coords: [100, 400], desc: "남측 대장벽 하단 진입로를 격리 중인 전술 초소. 견고한 철제 바리케이드가 고정되어 있습니다." },
-            { name: "폐쇄된 통제 관문 (서)", icon: "🚧", coords: [300, 100], desc: "서측 대로변 진입 장벽 게이트. 시스템 마스터 키카드가 있어야 해제 가능합니다." },
-            { name: "폐쇄된 통제 관문 (동)", icon: "🚧", coords: [300, 700], desc: "동측 외곽 차단벽 사이에 요새화된 최종 관문. 이 너머는 완전 오염 통제 불능 구역입니다." }
+            { name: "침수된 지하 상가", icon: "💧", coords: [200, 255], desc: "...", underground: true },
+            { name: "끝이 막힌 폐지하철", icon: "🚇", coords: [400, 455], desc: "...", underground: true },
+            { name: "축축한 지하 철길", icon: "🛤️", coords: [400, 155], desc: "...", underground: true },
+            { name: "고요한 환승 구역", icon: "🔄", coords: [200, 155], desc: "...", underground: true },
+            { name: "비밀스러운 지하 수로", icon: "🌊", coords: [155, 635], desc: "...", underground: true },
+            
+            // 지상 거점들
+            { name: "잿빛 공장 지대", icon: "🏭", coords: [465, 175], desc: "...", underground: false },
+            { name: "고철 더미의 정원", icon: "🏗️", coords: [515, 255], desc: "...", underground: false },
+            { name: "붕괴한 중앙몰", icon: "🏢", coords: [305, 380], desc: "...", underground: false },
+            { name: "파괴된 식자재 마트", icon: "🛒", coords: [230, 295], desc: "...", underground: false },
+            { name: "반파된 중앙 도서관", icon: "📚", coords: [268, 495], desc: "...", underground: false },
+            { name: "콘크리트 더 타워", icon: "🗼", coords: [400, 500], desc: "...", underground: false },
+            { name: "버려진 차량들의 묘지", icon: "🚗", coords: [245, 165], desc: "...", underground: false },
+            { name: "초록늪 중앙 의료원", icon: "🏥", coords: [155, 670], desc: "...", underground: false },
+            { name: "폐쇄된 통제 관문 (북)", icon: "🚧", coords: [500, 400], desc: "...", underground: false },
+            { name: "폐쇄된 통제 관문 (남)", icon: "🚧", coords: [100, 400], desc: "...", underground: false },
+            { name: "폐쇄된 통제 관문 (서)", icon: "🚧", coords: [300, 100], desc: "...", underground: false },
+            { name: "폐쇄된 통제 관문 (동)", icon: "🚧", coords: [300, 700], desc: "...", underground: false }
         ];
 
         jaeraeNodes.forEach(node => {
-            const tacticalHtml = '<div class="tactical-marker-container"><div class="tactical-box">' + node.icon + '</div><div class="tactical-pointer"></div><div class="tactical-title-tag">' + node.name + '</div></div>';
+            const tacticalHtml = `<div class="tactical-marker-container"><div class="tactical-box">${node.icon}</div><div class="tactical-pointer"></div><div class="tactical-title-tag">${node.name}</div></div>`;
             const tacticalIcon = L.divIcon({ html: tacticalHtml, className: 'custom-nakwon-marker', iconSize: [40, 50], iconAnchor: [20, 36], popupAnchor: [0, -36] });
-            const popupContent = '<div class="popup-title">' + node.icon + ' ' + node.name + '</div><div style="font-size: 12px; line-height: 1.5; color: #bcccda;">' + node.desc + '</div><div style="font-size: 10px; color: #5c6266; margin-top: 8px; text-align: right; font-family: monospace;">SYS_GRID: [' + node.coords[1] + ', ' + node.coords[0] + ']</div>';
-            L.marker(node.coords, { icon: tacticalIcon }).addTo(map).bindPopup(popupContent);
+            const popupContent = `<div class="popup-title">${node.icon} ${node.name}</div><div style="font-size: 12px; line-height: 1.5; color: #bcccda;">${node.desc}</div><div style="font-size: 10px; color: #5c6266; margin-top: 8px; text-align: right; font-family: monospace;">SYS_GRID: [${node.coords[1]}, ${node.coords[0]}]</div>`;
+
+            const marker = L.marker(node.coords, { icon: tacticalIcon }).bindPopup(popupContent);
+
+            if (node.underground) {
+                marker.addTo(undergroundGroup);
+            } else {
+                marker.addTo(surfaceGroup);
+            }
         });
 
         // ============================================================================
-        // 9. 맵 초기화
+        // 8. 토글 버튼 제어
+        // ============================================================================
+        const surfaceBtn = document.getElementById('surfaceBtn');
+        const undergroundBtn = document.getElementById('undergroundBtn');
+
+        function setMode(isUnderground) {
+            if (isUnderground) {
+                surfaceGroup.removeFrom(map);
+                undergroundGroup.addTo(map);
+                surfaceBtn.classList.remove('active');
+                undergroundBtn.classList.add('active');
+            } else {
+                undergroundGroup.removeFrom(map);
+                surfaceGroup.addTo(map);
+                surfaceBtn.classList.add('active');
+                undergroundBtn.classList.remove('active');
+            }
+        }
+
+        surfaceBtn.addEventListener('click', () => setMode(false));
+        undergroundBtn.addEventListener('click', () => setMode(true));
+
+        // ============================================================================
+        // 9. 초기화 (지상 모드 기본)
         // ============================================================================
         map.fitBounds(mapBounds);
         map.setMinZoom(map.getZoom());
         map.setMaxZoom(map.getZoom() + 2);
-        console.log("✅ URBAN BLOCK DESIGN COMPLETE (OVERLAP FIXED)");
-        console.log("Total Buildings:", buildings.length + customShapes.length);
+
+        console.log("✅ JAERA-E TACTICAL MAP v3.4 - Layer Toggle Enabled");
     </script>
 </body>
 </html>
